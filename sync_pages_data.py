@@ -1,130 +1,15 @@
 #!/usr/bin/env python3
-import json
-import re
-import subprocess
-from datetime import datetime
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent
-DOCS = ROOT / "docs"
-DATA = DOCS / "data"
-FREE_SCRIPT = DOCS / "free_chpc_gpus.sh"
-HOGGING_SCRIPT = DOCS / "whoishogging.sh"
-
-
-def run_script(script: Path) -> str:
-    try:
-        result = subprocess.run(
-            ["bash", str(script)],
-            cwd=ROOT,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise SystemExit(
-            f"Failed while running {script.name}.\n"
-            f"stdout:\n{exc.stdout}\n"
-            f"stderr:\n{exc.stderr}"
-        ) from exc
-    return result.stdout
-
-
-def split_columns(line: str) -> list[str]:
-    return re.split(r"\s{2,}", line.strip())
-
-
-def parse_free(output: str) -> list[dict]:
-    rows = []
-    started = False
-    for raw_line in output.splitlines():
-        line = raw_line.rstrip()
-        if not line:
-            continue
-        if line.startswith("CLUSTER"):
-            started = True
-            continue
-        if not started:
-            continue
-        if line.startswith("To allocate"):
-            break
-        if set(line) == {"-"}:
-            continue
-        cols = split_columns(line)
-        if len(cols) != 9:
-            continue
-        rows.append(
-            {
-                "cluster": cols[0],
-                "partition": cols[1],
-                "node": cols[2],
-                "free": cols[3],
-                "cores": int(cols[4]),
-                "maxTime": cols[5],
-                "gpuType": cols[6],
-                "account": cols[7],
-                "qos": cols[8],
-            }
-        )
-    return rows
-
-
-def parse_hogging(output: str) -> list[dict]:
-    rows = []
-    started = False
-    for raw_line in output.splitlines():
-        line = raw_line.rstrip()
-        if not line:
-            continue
-        if line.startswith("CLUSTER"):
-            started = True
-            continue
-        if not started:
-            continue
-        if line.startswith("=== Total GPU allocation per user"):
-            break
-        if set(line) == {"-"}:
-            continue
-        cols = split_columns(line)
-        if len(cols) != 9:
-            continue
-        rows.append(
-            {
-                "cluster": cols[0],
-                "node": cols[1],
-                "userId": cols[2],
-                "fullName": cols[3],
-                "advisor": cols[4],
-                "running": cols[5],
-                "wallLimit": cols[6],
-                "gpuUsed": cols[7],
-                "jobName": cols[8],
-            }
-        )
-    return rows
-
-
-def write_json(path: Path, rows: list[dict]) -> None:
-    payload = {
-        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "rows": rows,
-    }
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+from data_sync import sync_data
 
 
 def main() -> None:
-    DATA.mkdir(parents=True, exist_ok=True)
-
-    free_output = run_script(FREE_SCRIPT)
-    hogging_output = run_script(HOGGING_SCRIPT)
-
-    (DATA / "free_gpus.raw.txt").write_text(free_output, encoding="utf-8")
-    (DATA / "whoishogging.raw.txt").write_text(hogging_output, encoding="utf-8")
-
-    write_json(DATA / "free_gpus.json", parse_free(free_output))
-    write_json(DATA / "whoishogging.json", parse_hogging(hogging_output))
-
-    print("Updated docs/data from exact script outputs.")
+    result = sync_data()
+    print(
+        "Updated docs/data from exact script outputs: "
+        f"{result['free_rows']} free rows, "
+        f"{result['hogging_rows']} hogging rows, "
+        f"generated_at={result['generated_at']}"
+    )
 
 
 if __name__ == "__main__":

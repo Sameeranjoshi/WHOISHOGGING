@@ -1,0 +1,10 @@
+[Unit]
+Description=Run CHPC GPU Finder data refresh every 5 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=chpc-gpu-finder-sync.service
+
+[Install]
+WantedBy=timers.target

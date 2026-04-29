@@ -1,61 +1,75 @@
-# CHPC GPU Helper Scripts
+# CHPC GPU Finder
 
-This repo now packages two small CHPC utilities behind one GitHub Pages site:
+This repo is now aimed at a lab-machine deployment, not just GitHub Pages.
 
-- `free_chpc_gpus.sh`: show free GPU slots you can actually request
-- `whoishogging.sh`: show active GPU jobs, who owns them, and a per-user GPU summary
+It keeps the two shell scripts intact:
 
-The published site should come from the [`docs/`](</Users/sameeranjoshi/Documents/New project/docs>) folder.
+- `docs/free_chpc_gpus.sh`
+- `docs/whoishogging.sh`
+
+The lab machine serves:
+
+- the UI from `docs/`
+- live-ish JSON from `/api/free-gpus` and `/api/whoishogging`
+- raw script output from `/api/raw/free-gpus` and `/api/raw/whoishogging`
+
+## How it works
+
+1. The UI is served by `server.py`.
+2. The server reads current data from `docs/data/*.json`.
+3. `sync_pages_data.py` runs the exact shell scripts and regenerates those JSON files.
+4. The refresh button calls `POST /api/refresh` on the lab machine.
+5. A systemd timer can refresh the data every 5 minutes so the site stays warm.
 
 ## Local preview
 
 ```bash
 cd '/Users/sameeranjoshi/Documents/New project'
-python3 server.py
+python3 server.py --host 127.0.0.1 --port 8000
 ```
 
 Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-## GitHub Pages setup
+## Lab machine deployment
 
-1. Push this repo to GitHub.
-2. In the repository settings, open `Pages`.
-3. Set `Build and deployment` to `Deploy from a branch`.
-4. Select your main branch and the `/docs` folder.
-5. Save. GitHub will publish:
-
-```text
-https://YOUR-USERNAME.github.io/YOUR-REPO/
-https://YOUR-USERNAME.github.io/YOUR-REPO/free_chpc_gpus.sh
-https://YOUR-USERNAME.github.io/YOUR-REPO/whoishogging.sh
-```
-
-## Install commands for users
-
-### Free GPU finder
+Copy the repo to the lab machine, for example:
 
 ```bash
-mkdir -p ~/bin
-curl -fsSL https://YOUR-USERNAME.github.io/YOUR-REPO/free_chpc_gpus.sh -o ~/bin/chpc-gpus
-chmod +x ~/bin/chpc-gpus
-~/bin/chpc-gpus
-~/bin/chpc-gpus h100
-~/bin/chpc-gpus a100
+git clone https://github.com/Sameeranjoshi/WHOISHOGGING.git /srv/chpc-gpu-finder
+cd /srv/chpc-gpu-finder
 ```
 
-### Who is using GPUs
+Run one sync manually first:
 
 ```bash
-mkdir -p ~/bin
-curl -fsSL https://YOUR-USERNAME.github.io/YOUR-REPO/whoishogging.sh -o ~/bin/whoishogging
-chmod +x ~/bin/whoishogging
-~/bin/whoishogging
-~/bin/whoishogging notchpeak
-~/bin/whoishogging owner-gpu-guest
+python3 sync_pages_data.py
 ```
 
-## Script notes
+Start the server manually:
 
-`free_chpc_gpus.sh` uses `mychpc`, `sinfo`, `squeue`, and `bc` to show GPU rows only for allocations the current user can access.
+```bash
+CHPC_GPU_FINDER_REFRESH_INTERVAL=300 python3 server.py --host 0.0.0.0 --port 8000
+```
 
-`whoishogging.sh` uses `squeue` to list active GPU jobs across clusters and then prints a summary sorted by GPU count per user.
+## systemd setup
+
+Templates live in [`deploy/`](</Users/sameeranjoshi/Documents/New project/deploy>).
+
+Replace `REPLACE_ME` with the correct user and group, then copy:
+
+```bash
+sudo cp deploy/chpc-gpu-finder.service /etc/systemd/system/
+sudo cp deploy/chpc-gpu-finder-sync.service /etc/systemd/system/
+sudo cp deploy/chpc-gpu-finder-sync.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now chpc-gpu-finder.service
+sudo systemctl enable --now chpc-gpu-finder-sync.timer
+```
+
+## Notes
+
+- GitHub Pages cannot run the CHPC commands. The lab machine server can.
+- `server.py` can refresh data on demand via `/api/refresh`.
+- The timer is still recommended so normal page loads do not wait on a full refresh.
+- If the lab machine lacks CHPC command access, the sync step will fail. The server will still serve the last successful snapshots if they exist.
+- The shell scripts use Bash associative arrays, so the lab machine should have Bash 4+ available.

@@ -1,0 +1,16 @@
+[Unit]
+Description=CHPC GPU Finder web server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/chpc-gpu-finder
+ExecStart=/usr/bin/env python3 /srv/chpc-gpu-finder/server.py --host 0.0.0.0 --port 8000
+Environment=CHPC_GPU_FINDER_REFRESH_INTERVAL=300
+Restart=always
+RestartSec=5
+User=REPLACE_ME
+Group=REPLACE_ME
+
+[Install]
+WantedBy=multi-user.target

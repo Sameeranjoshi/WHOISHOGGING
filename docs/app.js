@@ -145,6 +145,8 @@ const state = {
   hoggingRows: fallbackHoggingRows,
   freeGeneratedAt: null,
   hoggingGeneratedAt: null,
+  freeWarning: null,
+  hoggingWarning: null,
   sort: {
     free: { key: "free", direction: "desc" },
     hogging: { key: "gpuUsed", direction: "desc" },
@@ -366,6 +368,11 @@ function formatGeneratedAt(value) {
   return `Updated: ${date.toLocaleString()}`;
 }
 
+function buildStamp(value, warning) {
+  const base = formatGeneratedAt(value);
+  return warning ? `${base} • refresh warning` : base;
+}
+
 function renderStats(cards) {
   statsGrid.innerHTML = "";
   cards.forEach((card) => {
@@ -555,11 +562,20 @@ function annotateHoggingRows(rows) {
 }
 
 async function loadJson(path) {
-  const response = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
+  const response = await fetch(path, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to load ${path}: ${response.status}`);
   }
   return response.json();
+}
+
+async function loadJsonWithFallback(primaryPath, fallbackPath) {
+  try {
+    return await loadJson(`${primaryPath}?t=${Date.now()}`);
+  } catch (error) {
+    console.warn(`Primary fetch failed for ${primaryPath}, falling back to ${fallbackPath}`, error);
+    return loadJson(`${fallbackPath}?t=${Date.now()}`);
+  }
 }
 
 async function loadData() {
@@ -567,19 +583,23 @@ async function loadData() {
   refreshButton.textContent = "Refreshing...";
   try {
     const [freeData, hoggingData] = await Promise.all([
-      loadJson("./data/free_gpus.json"),
-      loadJson("./data/whoishogging.json"),
+      loadJsonWithFallback("/api/free-gpus", "./data/free_gpus.json"),
+      loadJsonWithFallback("/api/whoishogging", "./data/whoishogging.json"),
     ]);
     state.freeRows = annotateFreeRows(freeData.rows || []);
     state.hoggingRows = annotateHoggingRows(hoggingData.rows || []);
     state.freeGeneratedAt = freeData.generated_at || null;
     state.hoggingGeneratedAt = hoggingData.generated_at || null;
+    state.freeWarning = freeData.warning || null;
+    state.hoggingWarning = hoggingData.warning || null;
   } catch (error) {
     console.error("Data load failed, using fallback rows.", error);
     state.freeRows = annotateFreeRows(fallbackFreeRows);
     state.hoggingRows = annotateHoggingRows(fallbackHoggingRows);
     state.freeGeneratedAt = null;
     state.hoggingGeneratedAt = null;
+    state.freeWarning = null;
+    state.hoggingWarning = null;
   }
   refreshButton.disabled = false;
   refreshButton.textContent = "Refresh";
@@ -599,7 +619,7 @@ function render() {
     summaryPanel.classList.add("hidden");
     viewHint.textContent =
       "See every currently visible free GPU row first, then click the GPU filters to narrow the table to H100, A100, H200, and other types.";
-    dataStamp.textContent = formatGeneratedAt(state.freeGeneratedAt);
+    dataStamp.textContent = buildStamp(state.freeGeneratedAt, state.freeWarning);
     renderFreeTable();
   } else {
     primaryTitle.textContent = "Who Is Hogging GPUs";
@@ -607,7 +627,7 @@ function render() {
     summaryPanel.classList.remove("hidden");
     viewHint.textContent =
       "Start from all running GPU jobs, then click GPU filters or analysis controls like Longest Running and Most GPUs to spot the heavy users quickly.";
-    dataStamp.textContent = formatGeneratedAt(state.hoggingGeneratedAt);
+    dataStamp.textContent = buildStamp(state.hoggingGeneratedAt, state.hoggingWarning);
     renderHoggingTable();
     renderSummaryTable();
   }
@@ -681,7 +701,23 @@ primaryBody.addEventListener("click", (event) => {
 });
 
 refreshButton.addEventListener("click", () => {
-  loadData();
+  refreshButton.disabled = true;
+  refreshButton.textContent = "Refreshing...";
+  fetch("/api/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Refresh failed: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(() => loadData())
+    .catch((error) => {
+      console.error("Server refresh failed; reloading current data instead.", error);
+      loadData();
+    });
 });
 
 loadData();
