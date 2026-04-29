@@ -25,8 +25,9 @@ def run_local_script(script: Path) -> str:
             ["bash", str(script)],
             cwd=ROOT,
             check=True,
-            text=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
         )
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
@@ -53,8 +54,9 @@ def run_remote_script(script: Path) -> str:
             ssh_command + [SSH_TARGET, remote_command],
             cwd=ROOT,
             check=True,
-            text=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
         )
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
