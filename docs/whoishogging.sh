@@ -1,81 +1,103 @@
 #!/usr/bin/env bash
-# whoishogging.sh - show active GPU jobs and summarize usage by user
-# Usage:
-#   ./whoishogging.sh
-#   ./whoishogging.sh notchpeak
-#   ./whoishogging.sh owner-gpu-guest
-#   ./whoishogging.sh u1234567
+# whoishogging.sh -- find who is occupying nodes with a given GPU type
+# Usage: ./whoishogging.sh <gpu_type>   e.g.  h100  a100  h200  a6000  3090  l40s
+#        ./whoishogging.sh              (no filter -- shows all GPU hogs)
 
-FILTER="${1:-}"
-TMPFILE=$(mktemp)
+GPU="${1:-}"
+
+[[ -z "$GPU" ]] && echo "Tip: ./whoishogging.sh <gpu_filter> -- e.g. h100, a100, h200, a6000"
+
+declare -A USER_NAME USER_GROUP
+
+user_info() {
+  local uid="$1"
+  [[ -n "${USER_NAME[$uid]}" ]] && return
+
+  local entry gid
+  entry=$(getent passwd "$uid" 2>/dev/null)
+  USER_NAME[$uid]=$(echo "$entry" | cut -d: -f5 | sed 's/,.*//')
+  gid=$(echo "$entry" | cut -d: -f4)
+  USER_GROUP[$uid]=$(getent group "$gid" 2>/dev/null | cut -d: -f1)
+  [[ -z "${USER_NAME[$uid]}" ]] && USER_NAME[$uid]="unknown"
+  [[ -z "${USER_GROUP[$uid]}" ]] && USER_GROUP[$uid]="unknown"
+}
+
+echo ""
+echo "Searching for GPU nodes matching: ${GPU:-'(all)'} ..."
+
+TMPFILE=$(mktemp /tmp/whoishogging.XXXX)
 trap 'rm -f "$TMPFILE"' EXIT
 
-gpu_count() {
-  local gres="$1"
-  local count
-  count=$(echo "$gres" | grep -oE 'gpu:[^:,()]+:[0-9]+' | awk -F: '{sum += $3} END {print sum + 0}')
-  echo "${count:-0}"
-}
+for cl in granite notchpeak kingspeak lonepeak; do
+  sinfo -M "$cl" -h -N -o "%N|%G" 2>/dev/null | grep -v "^$" | sort -u | \
+    while IFS='|' read -r node gres; do
+      echo "$gres" | tr ',' '\n' | grep -oP 'gpu:[^:(]+:[0-9]+' | \
+        while read -r entry; do
+          gputype=$(echo "$entry" | awk -F: '{print $2}')
+          count=$(echo "$entry" | awk -F: '{print $3}')
+          [[ "$gputype" =~ [0-9]g\.[0-9] ]] && continue
+          [[ -n "$GPU" ]] && echo "$gputype" | grep -qiv "$GPU" && continue
+          echo "$cl|$node|$gputype|$count"
+        done
+    done
+done | sort -u > "$TMPFILE"
 
-for cluster in granite notchpeak kingspeak lonepeak; do
-  squeue -M "$cluster" -h -o "%u|%a|%P|%N|%b|%M|%l|%T|%i|%j" 2>/dev/null \
-    | while IFS='|' read -r user acct part node gres runtime timelimit state jobid jobname; do
-        [[ "$state" == "PD" ]] && continue
-        gpus=$(gpu_count "$gres")
-        [[ "$gpus" -eq 0 && ! "$part" =~ gpu ]] && continue
-
-        row="$cluster|$user|$acct|$part|$node|$gpus|$runtime|$timelimit|$state|$jobid|$jobname|$gres"
-        if [[ -n "$FILTER" ]] && ! echo "$row" | grep -qi -- "$FILTER"; then
-          continue
-        fi
-        echo "$row" >> "$TMPFILE"
-      done
-done
+node_count=$(cut -d'|' -f2 "$TMPFILE" | sort -u | wc -l)
+echo "Found $node_count node(s). Checking allocations..."
+echo ""
 
 if [[ ! -s "$TMPFILE" ]]; then
-  if [[ -n "$FILTER" ]]; then
-    echo "No active GPU jobs matched filter: $FILTER"
-  else
-    echo "No active GPU jobs found."
-  fi
-  exit 0
+  echo "No nodes found matching GPU: $GPU"
+  exit 1
 fi
 
-printf "\n%-10s %-10s %-20s %-28s %-12s %-6s %-10s %-12s %-8s %-10s %s\n" \
-  "CLUSTER" "USER" "ACCOUNT" "PARTITION" "NODE" "GPUS" "RUNTIME" "LIMIT" "STATE" "JOBID" "JOB_NAME"
-printf '%0.s-' {1..150}
+printf "%-12s %-10s %-15s %-22s %-16s %-10s %-10s %-14s %s\n" \
+  "CLUSTER" "NODE" "USER_ID" "FULL_NAME" "ADVISOR/PI" "RUNNING" "WALL_LIMIT" "GPU(used)" "JOB_NAME"
+printf '%0.s-' {1..135}
 echo
 
-sort -t'|' -k6,6nr -k2,2 "$TMPFILE" | while IFS='|' read -r cluster user acct part node gpus runtime timelimit state jobid jobname gres; do
-  printf "%-10s %-10s %-20s %-28s %-12s %-6s %-10s %-12s %-8s %-10s %s\n" \
-    "$cluster" "$user" "$acct" "$part" "$node" "$gpus" "$runtime" "$timelimit" "$state" "$jobid" "$jobname"
-done
+declare -A SEEN_JOB
 
-echo
-echo "Summary by user:"
-printf "%-10s %-6s %-6s %s\n" "USER" "JOBS" "GPUS" "PARTITIONS"
-printf '%0.s-' {1..80}
+while IFS='|' read -r cl node gputype total; do
+  squeue -M "$cl" -h -w "$node" --state=RUNNING -o "%i|%u|%a|%M|%l|%b|%j" 2>/dev/null | \
+    while IFS='|' read -r jobid uid account runtime timelimit tres jobname; do
+      [[ -z "$uid" ]] && continue
+      key="${cl}:${jobid}"
+      [[ -n "${SEEN_JOB[$key]}" ]] && continue
+      SEEN_JOB[$key]=1
+
+      user_info "$uid"
+      used=$(echo "$tres" | grep -oi "${gputype}:[0-9]*" | grep -oP '[0-9]+$')
+      [[ -z "$used" ]] && used=$(echo "$tres" | grep -oP 'gpu[^:]*:\K[0-9]+' | head -1)
+      [[ -z "$used" ]] && used="1"
+
+      printf "%-12s %-10s %-15s %-22s %-16s %-10s %-10s %-14s %s\n" \
+        "$cl" "$node" "$uid" \
+        "${USER_NAME[$uid]:0:21}" "${USER_GROUP[$uid]:0:15}" \
+        "$runtime" "$timelimit" "${gputype}x${used}" \
+        "${jobname:0:35}"
+    done
+done < "$TMPFILE"
+
+echo ""
+echo "=== Total GPU allocation per user (all clusters) ==="
+printf "%-15s %-24s %-16s %6s\n" "USER_ID" "FULL_NAME" "ADVISOR/PI" "GPUs"
+printf '%0.s-' {1..65}
 echo
 
-awk -F'|' '
-{
-  jobs[$2]++
-  gpus[$2] += $6
-  if (!seen[$2 SUBSEP $4]++) {
-    parts[$2] = parts[$2] ? parts[$2] "," $4 : $4
+for cl in granite notchpeak kingspeak lonepeak; do
+  squeue -M "$cl" -h --state=RUNNING -o "%u|%b" 2>/dev/null
+done | grep -v "^$" | \
+  awk -F'|' '{
+    n = split($2, parts, ",")
+    for (i=1; i<=n; i++) {
+      if (match(parts[i], /gpu[^:]*:([0-9]+)/, m)) { totals[$1] += m[1]; break }
+    }
   }
-}
-END {
-  for (user in jobs) {
-    printf "%s|%d|%d|%s\n", user, jobs[user], gpus[user], parts[user]
-  }
-}
-' "$TMPFILE" | sort -t'|' -k3,3nr -k2,2nr | while IFS='|' read -r user jobs gpus parts; do
-  printf "%-10s %-6s %-6s %s\n" "$user" "$jobs" "$gpus" "$parts"
-done
-
-echo
-echo "Tip: filter by cluster, user, account, partition, or node:"
-echo " ./whoishogging.sh notchpeak"
-echo " ./whoishogging.sh owner-gpu-guest"
-echo " ./whoishogging.sh u1234567"
+  END { for (u in totals) print totals[u], u }' | \
+  sort -rn | \
+  while read -r count uid; do
+    user_info "$uid"
+    printf "%-15s %-24s %-16s %6s\n" \
+      "$uid" "${USER_NAME[$uid]:0:23}" "${USER_GROUP[$uid]:0:15}" "$count"
+  done

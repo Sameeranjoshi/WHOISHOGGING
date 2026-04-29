@@ -3,104 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CHPC GPU Helper Scripts</title>
+  <title>CHPC GPU Finder</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
-      <div class="heroCopy">
+    <header class="topbar">
+      <div>
         <p class="eyebrow">University of Utah CHPC</p>
-        <h1>Two small scripts. Much less GPU guesswork.</h1>
-        <p class="lede">
-          One script finds free GPUs you can actually request. The other shows who is
-          currently using GPU allocations. Host both on GitHub Pages and give your
-          department one stable install path.
-        </p>
+        <h1>CHPC GPU Finder</h1>
       </div>
-      <div class="heroPanel">
-        <p class="panelKicker">Hosted downloads</p>
-        <div class="downloadGrid">
-          <a class="downloadButton" href="./free_chpc_gpus.sh" download>Download `free_chpc_gpus.sh`</a>
-          <a class="downloadButton secondary" href="./whoishogging.sh" download>Download `whoishogging.sh`</a>
-        </div>
-        <p class="heroNote">
-          Configure GitHub Pages to publish the <code>docs/</code> folder. The final URLs will look like
-          <code>https://YOUR-USERNAME.github.io/YOUR-REPO/free_chpc_gpus.sh</code>.
-        </p>
+      <nav class="tabs" id="tabNav" aria-label="Main views">
+        <button class="tabButton active" data-view="free">Find GPUs</button>
+        <button class="tabButton" data-view="hogging">Find Who Is Hogging GPUs</button>
+      </nav>
+    </header>
+
+    <section class="toolbar">
+      <div class="filterLabel">GPU Type</div>
+      <div class="gpuFilters" id="gpuFilters"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panelHeader">
+        <h2 id="primaryTitle">Find GPUs</h2>
+      </div>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr id="primaryHead"></tr>
+          </thead>
+          <tbody id="primaryBody"></tbody>
+        </table>
       </div>
     </section>
 
-    <section class="scriptCards">
-      <article class="scriptCard active" data-script-card="free">
-        <span class="stepNumber">01</span>
-        <h2>Find free GPUs</h2>
-        <p>Show current free GPU slots across clusters, partitions, and accounts you can actually access.</p>
-      </article>
-      <article class="scriptCard" data-script-card="hogging">
-        <span class="stepNumber">02</span>
-        <h2>See who is using them</h2>
-        <p>List active GPU jobs with users, accounts, partitions, nodes, GPU counts, and a summary by user.</p>
-      </article>
+    <section class="panel hidden" id="summaryPanel">
+      <div class="panelHeader">
+        <h2>=== Total GPU allocation per user (all clusters) ===</h2>
+      </div>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr id="summaryHead"></tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
     </section>
 
-    <section class="workspace">
-      <aside class="controlPanel">
-        <div class="panelTitle">Choose script</div>
-        <div class="scriptSwitcher" id="scriptSwitcher">
-          <button class="scriptChip active" data-script="free">free_chpc_gpus.sh</button>
-          <button class="scriptChip" data-script="hogging">whoishogging.sh</button>
-        </div>
-
-        <div class="commandBlock">
-          <div class="commandLabel">Install command</div>
-          <code id="installCommand"></code>
-          <button class="copyButton" data-copy-target="installCommand">Copy install</button>
-        </div>
-
-        <div class="commandBlock">
-          <div class="commandLabel">Run command on CHPC</div>
-          <code id="runCommand"></code>
-          <button class="copyButton" data-copy-target="runCommand">Copy run command</button>
-        </div>
-
-        <div class="commandBlock" id="filterBlock">
-          <div class="commandLabel">Quick filters</div>
-          <div class="filterGroup" id="filterGroup">
-            <button class="filterChip active" data-filter="">All GPUs</button>
-            <button class="filterChip" data-filter="h100">H100</button>
-            <button class="filterChip" data-filter="a100">A100</button>
-            <button class="filterChip" data-filter="h200">H200</button>
-          </div>
-        </div>
-
-        <div class="commandBlock">
-          <div class="commandLabel" id="extraCommandLabel"></div>
-          <code id="extraCommand"></code>
-          <button class="copyButton" data-copy-target="extraCommand">Copy template</button>
-        </div>
-
-        <div class="notesPanel">
-          <div class="panelTitle">Requirements</div>
-          <ul id="requirementsList"></ul>
-        </div>
-      </aside>
-
-      <section class="outputPanel">
-        <div class="outputHeader">
-          <div class="panelTitle">Example output</div>
-          <p class="outputIntro" id="outputIntro"></p>
-        </div>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr id="outputHead"></tr>
-            </thead>
-            <tbody id="outputBody"></tbody>
-          </table>
-        </div>
-        <p class="hint" id="outputHint"></p>
-      </section>
+    <section class="commandPanel">
+      <div class="panelHeader">
+        <h2>salloc</h2>
+      </div>
+      <code id="sallocCommand"></code>
     </section>
   </main>
   <script src="./app.js"></script>

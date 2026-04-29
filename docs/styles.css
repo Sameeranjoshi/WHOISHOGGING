@@ -1,14 +1,13 @@
 :root {
-  --bg: #eef3f0;
-  --bg-strong: #d9e5df;
+  --bg: #f4f6f5;
+  --panel: #ffffff;
+  --panel-soft: #f8fbfa;
   --ink: #13211a;
-  --muted: #53665c;
-  --line: rgba(19, 33, 26, 0.12);
-  --card: rgba(255, 255, 255, 0.78);
-  --accent: #146356;
-  --accent-strong: #0d3f36;
-  --accent-soft: #dff5ee;
-  --highlight: #f3b562;
+  --muted: #607168;
+  --line: #d9e2dd;
+  --accent: #0f6a58;
+  --accent-soft: #ddefe9;
+  --accent-strong: #0b4f42;
 }
 
 * {
@@ -17,317 +16,209 @@
 
 body {
   margin: 0;
+  background: linear-gradient(180deg, #f4f6f5 0%, #edf2ef 100%);
   color: var(--ink);
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
-  background:
-    radial-gradient(circle at top left, rgba(20, 99, 86, 0.16), transparent 28%),
-    radial-gradient(circle at 85% 20%, rgba(243, 181, 98, 0.18), transparent 18%),
-    linear-gradient(180deg, #edf4f0 0%, #e2ece6 100%);
 }
 
 .shell {
-  width: min(1320px, calc(100% - 32px));
+  width: min(1400px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding: 28px 0 36px;
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: 1.25fr 0.95fr;
-  gap: 24px;
-  align-items: stretch;
-}
-
-.heroCopy,
-.heroPanel,
-.scriptCard,
-.controlPanel,
-.outputPanel {
-  background: var(--card);
+.topbar,
+.toolbar,
+.panel,
+.commandPanel {
+  background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 28px;
-  backdrop-filter: blur(10px);
+  border-radius: 20px;
 }
 
-.heroCopy {
-  padding: 32px;
-  min-height: 340px;
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: end;
+  padding: 24px;
 }
 
-.eyebrow,
-.panelTitle,
-.panelKicker,
-.commandLabel {
-  margin: 0 0 12px;
-  font-family: "Avenir Next", "Helvetica Neue", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font: 700 12px/1 "Avenir Next", "Helvetica Neue", sans-serif;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--accent);
 }
 
 h1,
 h2 {
   margin: 0;
-  font-weight: 700;
 }
 
 h1 {
-  max-width: 11ch;
-  font-size: clamp(3rem, 7vw, 5.5rem);
-  line-height: 0.92;
+  font-size: clamp(2rem, 4vw, 3.4rem);
   letter-spacing: -0.04em;
 }
 
 h2 {
-  font-size: 1.45rem;
-}
-
-.lede {
-  max-width: 42rem;
-  margin: 18px 0 0;
   font-size: 1.2rem;
-  line-height: 1.65;
-  color: var(--muted);
 }
 
-.heroPanel {
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  justify-content: center;
-  background:
-    linear-gradient(180deg, rgba(19, 33, 26, 0.03), rgba(19, 33, 26, 0.01)),
-    linear-gradient(135deg, rgba(223, 245, 238, 0.9), rgba(255, 255, 255, 0.8));
-}
-
-.downloadGrid {
-  display: grid;
-  gap: 12px;
-}
-
-.heroNote {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.scriptCards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  margin-top: 20px;
-}
-
-.scriptCard {
-  padding: 24px;
-  cursor: pointer;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.scriptCard:hover {
-  transform: translateY(-2px);
-}
-
-.scriptCard.active {
-  border-color: rgba(20, 99, 86, 0.4);
-  box-shadow: 0 18px 40px rgba(20, 99, 86, 0.08);
-}
-
-.scriptCard p {
-  margin: 10px 0 0;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.stepNumber {
-  display: inline-flex;
-  width: 42px;
-  height: 42px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--highlight);
-  color: var(--ink);
-  font: 700 0.95rem/1 "Avenir Next", "Helvetica Neue", sans-serif;
-  margin-bottom: 16px;
-}
-
-.workspace {
-  display: grid;
-  grid-template-columns: 400px 1fr;
-  gap: 24px;
-  margin-top: 24px;
-}
-
-.controlPanel,
-.outputPanel {
-  padding: 24px;
-}
-
-.scriptSwitcher,
-.filterGroup {
+.tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.commandBlock,
-.notesPanel {
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-code {
-  display: block;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  font-family: "SFMono-Regular", "Menlo", monospace;
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-button,
-.downloadButton {
+.tabButton,
+.filterButton,
+.sortButton {
   appearance: none;
   border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.tabButton,
+.filterButton {
   border-radius: 999px;
   padding: 12px 16px;
-  font: 600 0.95rem/1 "Avenir Next", "Helvetica Neue", sans-serif;
-  cursor: pointer;
-  transition: transform 140ms ease, background-color 140ms ease, color 140ms ease;
+  font: 600 0.96rem/1 "Avenir Next", "Helvetica Neue", sans-serif;
 }
 
-button:hover,
-.downloadButton:hover {
-  transform: translateY(-1px);
+.tabButton {
+  background: var(--panel-soft);
+  color: var(--accent-strong);
 }
 
-.downloadButton {
-  text-decoration: none;
-  text-align: center;
+.tabButton.active,
+.filterButton.active {
   background: var(--accent-strong);
-  color: white;
+  color: #ffffff;
 }
 
-.downloadButton.secondary {
-  background: var(--accent);
+.toolbar {
+  margin-top: 16px;
+  padding: 18px 24px;
 }
 
-.copyButton,
-.filterChip,
-.scriptChip {
+.filterLabel {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font: 700 12px/1 "Avenir Next", "Helvetica Neue", sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.gpuFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filterButton {
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
 
-.scriptChip.active,
-.filterChip.active {
-  background: var(--accent-strong);
-  color: white;
+.panel,
+.commandPanel {
+  margin-top: 16px;
+  padding: 22px 24px;
 }
 
-.notesPanel {
-  background: linear-gradient(180deg, rgba(223, 245, 238, 0.72), rgba(255, 255, 255, 0.88));
-}
-
-.notesPanel ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-
-.outputHeader {
-  margin-bottom: 16px;
-}
-
-.outputIntro {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.6;
+.panelHeader {
+  margin-bottom: 14px;
 }
 
 .tableWrap {
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
 }
 
 table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
-  min-width: 960px;
+  background: var(--panel);
 }
 
 th,
 td {
   padding: 14px 16px;
-  text-align: left;
   border-bottom: 1px solid var(--line);
+  text-align: left;
   font-size: 0.96rem;
 }
 
 th {
-  font: 700 0.8rem/1.2 "Avenir Next", "Helvetica Neue", sans-serif;
+  background: #f6faf8;
+  color: var(--accent-strong);
+  font: 700 0.78rem/1.2 "Avenir Next", "Helvetica Neue", sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent);
-  background: rgba(223, 245, 238, 0.55);
+}
+
+.sortButton {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
 }
 
 tbody tr:hover {
-  background: rgba(223, 245, 238, 0.36);
+  background: #f4faf7;
 }
 
-.hint,
-.emptyState {
-  color: var(--muted);
-}
-
-.hint {
-  margin: 14px 0 0;
-  line-height: 1.6;
+tbody tr.selected {
+  background: #e7f4ee;
 }
 
 .emptyState {
   text-align: center;
+  color: var(--muted);
   padding: 24px;
+}
+
+.commandPanel code {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f6faf8;
+  font-family: "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.96rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .hidden {
   display: none;
 }
 
-@media (max-width: 1080px) {
-  .hero,
-  .workspace,
-  .scriptCards {
-    grid-template-columns: 1fr;
+@media (max-width: 980px) {
+  .topbar {
+    align-items: start;
+    flex-direction: column;
   }
 }
 
 @media (max-width: 720px) {
   .shell {
-    width: min(100% - 20px, 1320px);
-    padding-top: 20px;
+    width: min(100% - 16px, 1400px);
+    padding-top: 16px;
   }
 
-  .heroCopy,
-  .heroPanel,
-  .scriptCard,
-  .controlPanel,
-  .outputPanel {
-    border-radius: 22px;
-  }
-
-  h1 {
-    font-size: clamp(2.7rem, 16vw, 4.4rem);
+  .topbar,
+  .toolbar,
+  .panel,
+  .commandPanel {
+    border-radius: 16px;
   }
 }
