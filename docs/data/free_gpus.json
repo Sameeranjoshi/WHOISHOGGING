@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-04-28T18:00:00-06:00",
+  "rows": [
+    {
+      "cluster": "granite",
+      "partition": "granite-gpu",
+      "node": "grn008",
+      "free": "4/8",
+      "cores": 64,
+      "maxTime": "3-00:00:00",
+      "gpuType": "h100nvl",
+      "account": "hall",
+      "qos": "granite-gpu-freecycle"
+    },
+    {
+      "cluster": "notchpeak",
+      "partition": "notchpeak-gpu-guest",
+      "node": "notch501",
+      "free": "1/4",
+      "cores": 32,
+      "maxTime": "3-00:00:00",
+      "gpuType": "h100nvl",
+      "account": "owner-gpu-guest",
+      "qos": "notchpeak-gpu-guest"
+    },
+    {
+      "cluster": "notchpeak",
+      "partition": "soc-gpu-np",
+      "node": "notch501",
+      "free": "1/4",
+      "cores": 32,
+      "maxTime": "12:00:00",
+      "gpuType": "h100nvl",
+      "account": "soc-gpu-np",
+      "qos": "soc-gpushort-np"
+    },
+    {
+      "cluster": "notchpeak",
+      "partition": "notchpeak-gpu",
+      "node": "notch293",
+      "free": "2/4",
+      "cores": 64,
+      "maxTime": "3-00:00:00",
+      "gpuType": "a100",
+      "account": "notchpeak-shared-short",
+      "qos": "notchpeak-shared-short"
+    },
+    {
+      "cluster": "kingspeak",
+      "partition": "kingspeak-gpu",
+      "node": "kp123",
+      "free": "1/2",
+      "cores": 64,
+      "maxTime": "1-00:00:00",
+      "gpuType": "h200",
+      "account": "kingspeak-gpu",
+      "qos": "kingspeak-gpu"
+    },
+    {
+      "cluster": "lonepeak",
+      "partition": "lonepeak-a6000",
+      "node": "lp044",
+      "free": "2/4",
+      "cores": 48,
+      "maxTime": "2-00:00:00",
+      "gpuType": "a6000",
+      "account": "lonepeak-gpu",
+      "qos": "lonepeak-gpu"
+    },
+    {
+      "cluster": "notchpeak",
+      "partition": "notchpeak-3090",
+      "node": "notch612",
+      "free": "3/4",
+      "cores": 32,
+      "maxTime": "1-00:00:00",
+      "gpuType": "3090",
+      "account": "notchpeak-gpu",
+      "qos": "notchpeak-gpu"
+    },
+    {
+      "cluster": "granite",
+      "partition": "granite-l40s",
+      "node": "grn019",
+      "free": "2/4",
+      "cores": 64,
+      "maxTime": "2-00:00:00",
+      "gpuType": "l40s",
+      "account": "granite-gpu",
+      "qos": "granite-gpu"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-04-28T18:00:00-06:00",
+  "rows": [
+    {
+      "cluster": "granite",
+      "node": "grn008",
+      "userId": "u1777000",
+      "fullName": "Annie Case",
+      "advisor": "hall",
+      "running": "00:57",
+      "wallLimit": "3-00:00:00",
+      "gpuUsed": "h100nvlx4",
+      "jobName": "pretrain-stage3"
+    },
+    {
+      "cluster": "notchpeak",
+      "node": "notch501",
+      "userId": "u1418973",
+      "fullName": "Sameer Joshi",
+      "advisor": "soc-gpu-np",
+      "running": "02:14",
+      "wallLimit": "12:00:00",
+      "gpuUsed": "h100nvlx1",
+      "jobName": "llm-eval"
+    },
+    {
+      "cluster": "notchpeak",
+      "node": "notch501",
+      "userId": "u1884200",
+      "fullName": "Maya Chen",
+      "advisor": "owner-gpu-guest",
+      "running": "07:43",
+      "wallLimit": "3-00:00:00",
+      "gpuUsed": "h100nvlx2",
+      "jobName": "diffusion-sweep"
+    },
+    {
+      "cluster": "notchpeak",
+      "node": "notch293",
+      "userId": "u1890001",
+      "fullName": "Rahul Patel",
+      "advisor": "notchpeak-share",
+      "running": "18:42",
+      "wallLimit": "3-00:00:00",
+      "gpuUsed": "a100x2",
+      "jobName": "vision-ft"
+    },
+    {
+      "cluster": "kingspeak",
+      "node": "kp123",
+      "userId": "u1555002",
+      "fullName": "Elena Brooks",
+      "advisor": "kingspeak-gpu",
+      "running": "05:11",
+      "wallLimit": "1-00:00:00",
+      "gpuUsed": "h200x1",
+      "jobName": "checkpoint-merge"
+    },
+    {
+      "cluster": "lonepeak",
+      "node": "lp044",
+      "userId": "u1666005",
+      "fullName": "Jordan Kim",
+      "advisor": "lonepeak-gpu",
+      "running": "11:24",
+      "wallLimit": "2-00:00:00",
+      "gpuUsed": "a6000x2",
+      "jobName": "segmentation-train"
+    },
+    {
+      "cluster": "notchpeak",
+      "node": "notch612",
+      "userId": "u1733001",
+      "fullName": "Priya Singh",
+      "advisor": "notchpeak-gpu",
+      "running": "03:05",
+      "wallLimit": "1-00:00:00",
+      "gpuUsed": "3090x1",
+      "jobName": "embedding-index"
+    },
+    {
+      "cluster": "granite",
+      "node": "grn019",
+      "userId": "u2000123",
+      "fullName": "Leo Martinez",
+      "advisor": "granite-gpu",
+      "running": "09:31",
+      "wallLimit": "2-00:00:00",
+      "gpuUsed": "l40sx2",
+      "jobName": "inference-batch"
+    }
+  ]
+}

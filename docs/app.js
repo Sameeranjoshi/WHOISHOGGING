@@ -1,6 +1,6 @@
 const gpuOptions = ["all", "h100", "a100", "h200", "a6000", "3090", "l40s"];
 
-const freeRows = [
+const fallbackFreeRows = [
   {
     cluster: "granite",
     partition: "granite-gpu",
@@ -99,7 +99,7 @@ const freeRows = [
   },
 ];
 
-const hoggingRows = [
+const fallbackHoggingRows = [
   {
     cluster: "granite",
     node: "grn008",
@@ -215,11 +215,16 @@ const summaryPanel = document.getElementById("summaryPanel");
 const summaryHead = document.getElementById("summaryHead");
 const summaryBody = document.getElementById("summaryBody");
 const sallocCommand = document.getElementById("sallocCommand");
+const dataStamp = document.getElementById("dataStamp");
 
 const state = {
   view: "free",
   gpuFilter: "all",
   selectedFreeKey: null,
+  freeRows: fallbackFreeRows,
+  hoggingRows: fallbackHoggingRows,
+  freeGeneratedAt: null,
+  hoggingGeneratedAt: null,
   sort: {
     free: { key: "free", direction: "desc" },
     hogging: { key: "gpuUsed", direction: "desc" },
@@ -321,7 +326,7 @@ function compareValues(a, b, type, direction) {
 function getSummaryRows() {
   const byUser = new Map();
 
-  hoggingRows.forEach((row) => {
+  state.hoggingRows.forEach((row) => {
     const existing = byUser.get(row.userId) || {
       userId: row.userId,
       fullName: row.fullName,
@@ -337,6 +342,7 @@ function getSummaryRows() {
 
 function getFilteredFreeRows() {
   let rows = [...freeRows];
+  rows = [...state.freeRows];
   if (state.gpuFilter !== "all") {
     rows = rows.filter((row) => normalizeGpuType(row.gpuType) === state.gpuFilter);
   }
@@ -352,7 +358,7 @@ function getFilteredFreeRows() {
 }
 
 function getFilteredHoggingRows() {
-  let rows = [...hoggingRows];
+  let rows = [...state.hoggingRows];
   if (state.gpuFilter !== "all") {
     rows = rows.filter((row) => row.gpuType === state.gpuFilter);
   }
@@ -394,6 +400,13 @@ function renderGpuFilters() {
     button.textContent = gpu === "all" ? "All" : gpu.toUpperCase();
     gpuFilters.appendChild(button);
   });
+}
+
+function formatGeneratedAt(value) {
+  if (!value) return "Using bundled sample data.";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return `Updated: ${value}`;
+  return `Updated: ${date.toLocaleString()}`;
 }
 
 function renderHead(target, columns, tableName) {
@@ -515,16 +528,61 @@ function render() {
 
   if (state.view === "free") {
     primaryTitle.textContent = "Find GPUs";
+    dataStamp.textContent = formatGeneratedAt(state.freeGeneratedAt);
     summaryPanel.classList.add("hidden");
     renderFreeTable();
   } else {
     primaryTitle.textContent = "Find Who Is Hogging GPUs";
+    dataStamp.textContent = formatGeneratedAt(state.hoggingGeneratedAt);
     summaryPanel.classList.remove("hidden");
     renderHoggingTable();
     renderSummaryTable();
   }
 
   renderSalloc();
+}
+
+function annotateFreeRows(rows) {
+  return rows.map((row) => ({
+    ...row,
+    freeCount: Number(String(row.free).split("/")[0]),
+  }));
+}
+
+function annotateHoggingRows(rows) {
+  return rows.map((row) => ({
+    ...row,
+    gpuType: normalizeGpuType(row.gpuUsed),
+    gpuCount: gpuUsedCount(row.gpuUsed),
+  }));
+}
+
+async function loadJson(path) {
+  const response = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to load ${path}: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function loadData() {
+  try {
+    const [freeData, hoggingData] = await Promise.all([
+      loadJson("./data/free_gpus.json"),
+      loadJson("./data/whoishogging.json"),
+    ]);
+    state.freeRows = annotateFreeRows(freeData.rows || []);
+    state.hoggingRows = annotateHoggingRows(hoggingData.rows || []);
+    state.freeGeneratedAt = freeData.generated_at || null;
+    state.hoggingGeneratedAt = hoggingData.generated_at || null;
+  } catch (error) {
+    console.error("Data load failed, using fallback rows.", error);
+    state.freeRows = annotateFreeRows(fallbackFreeRows);
+    state.hoggingRows = annotateHoggingRows(fallbackHoggingRows);
+    state.freeGeneratedAt = null;
+    state.hoggingGeneratedAt = null;
+  }
+  render();
 }
 
 tabNav.addEventListener("click", (event) => {
@@ -578,4 +636,4 @@ primaryBody.addEventListener("click", (event) => {
   render();
 });
 
-render();
+loadData();

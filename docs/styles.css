@@ -120,6 +120,12 @@ h2 {
   gap: 10px;
 }
 
+.dataStamp {
+  margin-top: 12px;
+  color: var(--muted);
+  font: 600 0.9rem/1.4 "Avenir Next", "Helvetica Neue", sans-serif;
+}
+
 .filterButton {
   background: var(--accent-soft);
   color: var(--accent-strong);
