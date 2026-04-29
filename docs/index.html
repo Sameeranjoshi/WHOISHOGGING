@@ -4,33 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CHPC GPU Finder</title>
-  <link rel="stylesheet" href="./styles.css?v=2" />
+  <link rel="stylesheet" href="./styles.css?v=3" />
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
-      <div>
+      <div class="titleBlock">
         <p class="eyebrow">University of Utah CHPC</p>
         <h1>CHPC GPU Finder</h1>
+        <p class="heroText" id="viewHint"></p>
       </div>
       <div class="topbarActions">
         <nav class="tabs" id="tabNav" aria-label="Main views">
           <button class="tabButton active" data-view="free">Find GPUs</button>
-          <button class="tabButton" data-view="hogging">Find Who Is Hogging GPUs</button>
+          <button class="tabButton" data-view="hogging">Who Is Hogging</button>
         </nav>
         <button class="refreshButton" id="refreshButton" type="button">Refresh</button>
       </div>
     </header>
 
     <section class="toolbar">
-      <div class="filterLabel">GPU Type</div>
-      <div class="gpuFilters" id="gpuFilters"></div>
-      <div class="dataStamp" id="dataStamp"></div>
+      <div class="toolbarRow">
+        <div>
+          <div class="filterLabel">GPU Type</div>
+          <div class="gpuFilters" id="gpuFilters"></div>
+        </div>
+        <div class="dataStamp" id="dataStamp"></div>
+      </div>
+      <div class="toolbarRow analysisRow">
+        <div>
+          <div class="filterLabel">Analysis</div>
+          <div class="analysisFilters" id="analysisFilters"></div>
+        </div>
+      </div>
     </section>
+
+    <section class="statsGrid" id="statsGrid"></section>
 
     <section class="panel">
       <div class="panelHeader">
         <h2 id="primaryTitle">Find GPUs</h2>
+        <div class="resultMeta" id="resultMeta"></div>
       </div>
       <div class="tableWrap">
         <table>
@@ -44,7 +58,7 @@
 
     <section class="panel hidden" id="summaryPanel">
       <div class="panelHeader">
-        <h2>=== Total GPU allocation per user (all clusters) ===</h2>
+        <h2 id="summaryTitle">Total GPU allocation per user</h2>
       </div>
       <div class="tableWrap">
         <table>
@@ -59,10 +73,11 @@
     <section class="commandPanel">
       <div class="panelHeader">
         <h2>salloc</h2>
+        <div class="commandHint">Click a GPU row above to update this command.</div>
       </div>
       <code id="sallocCommand"></code>
     </section>
   </main>
-  <script src="./app.js?v=2"></script>
+  <script src="./app.js?v=3"></script>
 </body>
 </html>

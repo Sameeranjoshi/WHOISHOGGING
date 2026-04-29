@@ -61,42 +61,6 @@ const fallbackFreeRows = [
     account: "kingspeak-gpu",
     qos: "kingspeak-gpu",
   },
-  {
-    cluster: "lonepeak",
-    partition: "lonepeak-a6000",
-    node: "lp044",
-    free: "2/4",
-    freeCount: 2,
-    cores: 48,
-    maxTime: "2-00:00:00",
-    gpuType: "a6000",
-    account: "lonepeak-gpu",
-    qos: "lonepeak-gpu",
-  },
-  {
-    cluster: "notchpeak",
-    partition: "notchpeak-3090",
-    node: "notch612",
-    free: "3/4",
-    freeCount: 3,
-    cores: 32,
-    maxTime: "1-00:00:00",
-    gpuType: "3090",
-    account: "notchpeak-gpu",
-    qos: "notchpeak-gpu",
-  },
-  {
-    cluster: "granite",
-    partition: "granite-l40s",
-    node: "grn019",
-    free: "2/4",
-    freeCount: 2,
-    cores: 64,
-    maxTime: "2-00:00:00",
-    gpuType: "l40s",
-    account: "granite-gpu",
-    qos: "granite-gpu",
-  },
 ];
 
 const fallbackHoggingRows = [
@@ -128,19 +92,6 @@ const fallbackHoggingRows = [
   },
   {
     cluster: "notchpeak",
-    node: "notch501",
-    userId: "u1884200",
-    fullName: "Maya Chen",
-    advisor: "owner-gpu-guest",
-    running: "07:43",
-    wallLimit: "3-00:00:00",
-    gpuUsed: "h100nvlx2",
-    gpuType: "h100",
-    gpuCount: 2,
-    jobName: "diffusion-sweep",
-  },
-  {
-    cluster: "notchpeak",
     node: "notch293",
     userId: "u1890001",
     fullName: "Rahul Patel",
@@ -152,63 +103,31 @@ const fallbackHoggingRows = [
     gpuCount: 2,
     jobName: "vision-ft",
   },
-  {
-    cluster: "kingspeak",
-    node: "kp123",
-    userId: "u1555002",
-    fullName: "Elena Brooks",
-    advisor: "kingspeak-gpu",
-    running: "05:11",
-    wallLimit: "1-00:00:00",
-    gpuUsed: "h200x1",
-    gpuType: "h200",
-    gpuCount: 1,
-    jobName: "checkpoint-merge",
-  },
-  {
-    cluster: "lonepeak",
-    node: "lp044",
-    userId: "u1666005",
-    fullName: "Jordan Kim",
-    advisor: "lonepeak-gpu",
-    running: "11:24",
-    wallLimit: "2-00:00:00",
-    gpuUsed: "a6000x2",
-    gpuType: "a6000",
-    gpuCount: 2,
-    jobName: "segmentation-train",
-  },
-  {
-    cluster: "notchpeak",
-    node: "notch612",
-    userId: "u1733001",
-    fullName: "Priya Singh",
-    advisor: "notchpeak-gpu",
-    running: "03:05",
-    wallLimit: "1-00:00:00",
-    gpuUsed: "3090x1",
-    gpuType: "3090",
-    gpuCount: 1,
-    jobName: "embedding-index",
-  },
-  {
-    cluster: "granite",
-    node: "grn019",
-    userId: "u2000123",
-    fullName: "Leo Martinez",
-    advisor: "granite-gpu",
-    running: "09:31",
-    wallLimit: "2-00:00:00",
-    gpuUsed: "l40sx2",
-    gpuType: "l40s",
-    gpuCount: 2,
-    jobName: "inference-batch",
-  },
 ];
 
+const analysisOptions = {
+  free: [
+    { key: "free", label: "Most Free" },
+    { key: "gpuType", label: "GPU Type" },
+    { key: "cluster", label: "Cluster" },
+    { key: "maxTime", label: "Longest Time" },
+  ],
+  hogging: [
+    { key: "gpuUsed", label: "Most GPUs" },
+    { key: "running", label: "Longest Running" },
+    { key: "userId", label: "User" },
+    { key: "cluster", label: "Cluster" },
+  ],
+};
+
 const primaryTitle = document.getElementById("primaryTitle");
+const summaryTitle = document.getElementById("summaryTitle");
+const resultMeta = document.getElementById("resultMeta");
+const viewHint = document.getElementById("viewHint");
 const tabNav = document.getElementById("tabNav");
 const gpuFilters = document.getElementById("gpuFilters");
+const analysisFilters = document.getElementById("analysisFilters");
+const statsGrid = document.getElementById("statsGrid");
 const primaryHead = document.getElementById("primaryHead");
 const primaryBody = document.getElementById("primaryBody");
 const summaryPanel = document.getElementById("summaryPanel");
@@ -284,10 +203,7 @@ function durationToMinutes(value) {
     time = daySplit[1];
   }
   const parts = time.split(":").map((part) => Number.parseInt(part, 10) || 0);
-  if (parts.length === 2) {
-    return days * 24 * 60 + parts[0] * 60 + parts[1];
-  }
-  if (parts.length === 3) {
+  if (parts.length >= 2) {
     return days * 24 * 60 + parts[0] * 60 + parts[1];
   }
   return 0;
@@ -326,7 +242,6 @@ function compareValues(a, b, type, direction) {
 
 function getSummaryRows() {
   const byUser = new Map();
-
   state.hoggingRows.forEach((row) => {
     const existing = byUser.get(row.userId) || {
       userId: row.userId,
@@ -337,13 +252,11 @@ function getSummaryRows() {
     existing.gpus += row.gpuCount;
     byUser.set(row.userId, existing);
   });
-
   return Array.from(byUser.values());
 }
 
 function getFilteredFreeRows() {
-  let rows = [...freeRows];
-  rows = [...state.freeRows];
+  let rows = [...state.freeRows];
   if (state.gpuFilter !== "all") {
     rows = rows.filter((row) => normalizeGpuType(row.gpuType) === state.gpuFilter);
   }
@@ -364,13 +277,27 @@ function getFilteredHoggingRows() {
     rows = rows.filter((row) => row.gpuType === state.gpuFilter);
   }
   const sortState = state.sort.hogging;
-  return rows.sort((a, b) => compareValues(a[sortState.key], b[sortState.key], hoggingColumns.find((col) => col.key === sortState.key).type, sortState.direction));
+  return rows.sort((a, b) =>
+    compareValues(
+      a[sortState.key],
+      b[sortState.key],
+      hoggingColumns.find((col) => col.key === sortState.key).type,
+      sortState.direction,
+    ),
+  );
 }
 
 function getSortedSummaryRows() {
   const rows = getSummaryRows();
   const sortState = state.sort.summary;
-  return rows.sort((a, b) => compareValues(a[sortState.key], b[sortState.key], summaryColumns.find((col) => col.key === sortState.key).type, sortState.direction));
+  return rows.sort((a, b) =>
+    compareValues(
+      a[sortState.key],
+      b[sortState.key],
+      summaryColumns.find((col) => col.key === sortState.key).type,
+      sortState.direction,
+    ),
+  );
 }
 
 function updateSelectedFreeNode(rows) {
@@ -398,16 +325,22 @@ function renderGpuFilters() {
     const button = document.createElement("button");
     button.className = `filterButton ${state.gpuFilter === gpu ? "active" : ""}`;
     button.dataset.gpu = gpu;
-    button.textContent = gpu === "all" ? "All" : gpu.toUpperCase();
+    button.textContent = gpu === "all" ? "All GPUs" : gpu.toUpperCase();
     gpuFilters.appendChild(button);
   });
 }
 
-function formatGeneratedAt(value) {
-  if (!value) return "Using bundled sample data.";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return `Updated: ${value}`;
-  return `Updated: ${date.toLocaleString()}`;
+function renderAnalysisFilters() {
+  analysisFilters.innerHTML = "";
+  const options = analysisOptions[state.view];
+  const activeSort = state.sort[state.view].key;
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.className = `analysisButton ${activeSort === option.key ? "active" : ""}`;
+    button.dataset.analysis = option.key;
+    button.textContent = option.label;
+    analysisFilters.appendChild(button);
+  });
 }
 
 function renderHead(target, columns, tableName) {
@@ -426,10 +359,95 @@ function renderHead(target, columns, tableName) {
   });
 }
 
+function formatGeneratedAt(value) {
+  if (!value) return "Using bundled sample data.";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return `Updated: ${value}`;
+  return `Updated: ${date.toLocaleString()}`;
+}
+
+function renderStats(cards) {
+  statsGrid.innerHTML = "";
+  cards.forEach((card) => {
+    const article = document.createElement("article");
+    article.className = "statCard";
+    article.innerHTML = `
+      <div class="statLabel">${card.label}</div>
+      <div class="statValue">${card.value}</div>
+      <div class="statSubtext">${card.subtext}</div>
+    `;
+    statsGrid.appendChild(article);
+  });
+}
+
+function buildFreeStats(rows) {
+  const totalFree = rows.reduce((sum, row) => sum + Number(String(row.free).split("/")[0]), 0);
+  const clusters = new Set(rows.map((row) => row.cluster)).size;
+  const topRow = rows[0];
+  return [
+    {
+      label: "Matching Rows",
+      value: rows.length,
+      subtext: state.gpuFilter === "all" ? "Showing every visible free GPU row." : `Filtered to ${state.gpuFilter.toUpperCase()}.`,
+    },
+    {
+      label: "Free GPUs",
+      value: totalFree,
+      subtext: "Total free GPU count across the visible rows.",
+    },
+    {
+      label: "Best Current Row",
+      value: topRow ? `${topRow.node}` : "None",
+      subtext: topRow ? `${topRow.gpuType} on ${topRow.cluster}` : "No matching rows.",
+    },
+    {
+      label: "Clusters",
+      value: clusters,
+      subtext: "Distinct clusters represented in the filtered table.",
+    },
+  ];
+}
+
+function buildHoggingStats(rows) {
+  const totalUsed = rows.reduce((sum, row) => sum + row.gpuCount, 0);
+  const longest = [...rows].sort((a, b) => durationToMinutes(b.running) - durationToMinutes(a.running))[0];
+  const largest = [...rows].sort((a, b) => b.gpuCount - a.gpuCount)[0];
+  const users = new Set(rows.map((row) => row.userId)).size;
+  return [
+    {
+      label: "Visible Jobs",
+      value: rows.length,
+      subtext: state.gpuFilter === "all" ? "All running jobs in the table." : `Filtered to ${state.gpuFilter.toUpperCase()}.`,
+    },
+    {
+      label: "GPUs In Use",
+      value: totalUsed,
+      subtext: "Total GPUs consumed by the visible jobs.",
+    },
+    {
+      label: "Longest Running",
+      value: longest ? longest.running : "None",
+      subtext: longest ? `${longest.userId} on ${longest.node}` : "No visible jobs.",
+    },
+    {
+      label: "Biggest Visible Job",
+      value: largest ? largest.gpuUsed : "None",
+      subtext: largest ? `${largest.userId} on ${largest.cluster}` : "No visible jobs.",
+    },
+    {
+      label: "Active Users",
+      value: users,
+      subtext: "Distinct users in the filtered table.",
+    },
+  ];
+}
+
 function renderFreeTable() {
   const rows = getFilteredFreeRows();
   updateSelectedFreeNode(rows);
   renderHead(primaryHead, freeColumns, "free");
+  resultMeta.textContent = `${rows.length} row${rows.length === 1 ? "" : "s"}`;
+  renderStats(buildFreeStats(rows));
 
   primaryBody.innerHTML = "";
   if (!rows.length) {
@@ -462,6 +480,8 @@ function renderFreeTable() {
 function renderHoggingTable() {
   const rows = getFilteredHoggingRows();
   renderHead(primaryHead, hoggingColumns, "hogging");
+  resultMeta.textContent = `${rows.length} visible job${rows.length === 1 ? "" : "s"}`;
+  renderStats(buildHoggingStats(rows));
 
   primaryBody.innerHTML = "";
   if (!rows.length) {
@@ -490,7 +510,6 @@ function renderSummaryTable() {
   renderHead(summaryHead, summaryColumns, "summary");
   const rows = getSortedSummaryRows();
   summaryBody.innerHTML = "";
-
   rows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -518,29 +537,6 @@ function renderSalloc() {
   sallocCommand.textContent =
     `salloc -M ${selected.cluster} -N 1 -n 1 -A ${selected.account} -p ${selected.partition} ` +
     `--qos=${selected.qos} --gres=gpu:${selected.gpuType}:1 -t 1:00:00`;
-}
-
-function render() {
-  renderGpuFilters();
-
-  document.querySelectorAll(".tabButton").forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === state.view);
-  });
-
-  if (state.view === "free") {
-    primaryTitle.textContent = "Find GPUs";
-    dataStamp.textContent = formatGeneratedAt(state.freeGeneratedAt);
-    summaryPanel.classList.add("hidden");
-    renderFreeTable();
-  } else {
-    primaryTitle.textContent = "Find Who Is Hogging GPUs";
-    dataStamp.textContent = formatGeneratedAt(state.hoggingGeneratedAt);
-    summaryPanel.classList.remove("hidden");
-    renderHoggingTable();
-    renderSummaryTable();
-  }
-
-  renderSalloc();
 }
 
 function annotateFreeRows(rows) {
@@ -590,6 +586,35 @@ async function loadData() {
   render();
 }
 
+function render() {
+  renderGpuFilters();
+  renderAnalysisFilters();
+
+  document.querySelectorAll(".tabButton").forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === state.view);
+  });
+
+  if (state.view === "free") {
+    primaryTitle.textContent = "Find GPUs";
+    summaryPanel.classList.add("hidden");
+    viewHint.textContent =
+      "See every currently visible free GPU row first, then click the GPU filters to narrow the table to H100, A100, H200, and other types.";
+    dataStamp.textContent = formatGeneratedAt(state.freeGeneratedAt);
+    renderFreeTable();
+  } else {
+    primaryTitle.textContent = "Who Is Hogging GPUs";
+    summaryTitle.textContent = "Top users by total GPU allocation";
+    summaryPanel.classList.remove("hidden");
+    viewHint.textContent =
+      "Start from all running GPU jobs, then click GPU filters or analysis controls like Longest Running and Most GPUs to spot the heavy users quickly.";
+    dataStamp.textContent = formatGeneratedAt(state.hoggingGeneratedAt);
+    renderHoggingTable();
+    renderSummaryTable();
+  }
+
+  renderSalloc();
+}
+
 tabNav.addEventListener("click", (event) => {
   const button = event.target.closest(".tabButton");
   if (!button) return;
@@ -601,6 +626,20 @@ gpuFilters.addEventListener("click", (event) => {
   const button = event.target.closest(".filterButton");
   if (!button) return;
   state.gpuFilter = button.dataset.gpu;
+  render();
+});
+
+analysisFilters.addEventListener("click", (event) => {
+  const button = event.target.closest(".analysisButton");
+  if (!button) return;
+  const table = state.view;
+  const sortState = state.sort[table];
+  if (sortState.key === button.dataset.analysis) {
+    sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+  } else {
+    sortState.key = button.dataset.analysis;
+    sortState.direction = "desc";
+  }
   render();
 });
 
