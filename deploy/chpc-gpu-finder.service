@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 WorkingDirectory=%h/chpc-gpu-finder
 ExecStart=/usr/bin/env python3 %h/chpc-gpu-finder/server.py --host 0.0.0.0 --port 8000
-Environment=CHPC_GPU_FINDER_REFRESH_INTERVAL=300
+EnvironmentFile=%h/chpc-gpu-finder/.env
 Restart=always
 RestartSec=5
 

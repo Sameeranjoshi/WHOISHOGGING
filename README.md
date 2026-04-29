@@ -34,6 +34,38 @@ Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
 The easiest path is a user-level install on the lab machine. No root is required.
 
+Because the lab machine itself does not have CHPC scheduler commands, the recommended setup is:
+
+1. Web server on the lab machine
+2. Data collection over SSH to a CHPC login node
+3. Exact scripts executed remotely on that CHPC-side checkout
+
+## One-time SSH collector setup
+
+On the lab machine, create a key for the collector:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/chpc_gpu_finder -N ""
+```
+
+Copy that key to the CHPC login account you want to use for collection:
+
+```bash
+ssh-copy-id -i ~/.ssh/chpc_gpu_finder.pub u1418973@notchpeak.chpc.utah.edu
+```
+
+Test it:
+
+```bash
+ssh -i ~/.ssh/chpc_gpu_finder notchpeak-login 'hostname && whoami'
+```
+
+Also make sure the repo exists on the CHPC side, because the lab machine will SSH there and run the exact scripts from that checkout:
+
+```bash
+ssh -i ~/.ssh/chpc_gpu_finder notchpeak-login 'git clone https://github.com/Sameeranjoshi/WHOISHOGGING.git ~/chpc-gpu-finder || git -C ~/chpc-gpu-finder pull --ff-only'
+```
+
 After you SSH to the lab host:
 
 ```bash
@@ -47,6 +79,16 @@ That script will:
 2. Run an initial sync using the exact shell scripts
 3. Install user-level `systemd` units
 4. Start the web server and 5-minute refresh timer
+
+The install script creates `~/chpc-gpu-finder/.env` from an example file on first run. For the SSH collector path, it should look roughly like:
+
+```bash
+CHPC_GPU_FINDER_REFRESH_INTERVAL=300
+CHPC_COLLECTOR_MODE=ssh
+CHPC_COLLECTOR_SSH_TARGET=notchpeak-login
+CHPC_COLLECTOR_SSH_IDENTITY_FILE=%h/.ssh/chpc_gpu_finder
+CHPC_REMOTE_REPO_DIR=$HOME/chpc-gpu-finder
+```
 
 ## Manual start
 
@@ -85,3 +127,4 @@ loginctl enable-linger "$USER"
 - If the lab machine lacks CHPC command access, the sync step will fail. The server will still serve the last successful snapshots if they exist.
 - The shell scripts use Bash associative arrays, so the lab machine should have Bash 4+ available.
 - The included deploy script assumes `systemd --user` is available on the lab machine.
+- For unattended refreshes, the lab machine should use SSH keys to a CHPC login node. Password prompts will not work inside the timer.

@@ -7,6 +7,7 @@ import time
 import urllib.parse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from data_sync import DATA, DOCS, load_json, sync_data
 
@@ -31,13 +32,13 @@ class AppState:
 STATE = AppState()
 
 
-def file_age_seconds(path: Path) -> float | None:
+def file_age_seconds(path: Path) -> Optional[float]:
     if not path.exists():
         return None
     return time.time() - path.stat().st_mtime
 
 
-def refresh_data(force: bool = False) -> dict:
+def refresh_data(force: bool = False) -> Dict[str, Any]:
     with STATE.lock:
         free_age = file_age_seconds(FREE_JSON)
         hogging_age = file_age_seconds(HOGGING_JSON)
@@ -58,7 +59,7 @@ def refresh_data(force: bool = False) -> dict:
         return {"refreshed": True, **result}
 
 
-def read_payload(path: Path) -> dict:
+def read_payload(path: Path) -> Dict[str, Any]:
     payload = load_json(path)
     if payload is None:
         raise FileNotFoundError(f"Missing data file: {path}")
@@ -73,7 +74,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
-    def send_json(self, payload: dict, status: int = 200):
+    def send_json(self, payload: Dict[str, Any], status: int = 200):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
