@@ -4,7 +4,5 @@ After=network.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/srv/chpc-gpu-finder
-ExecStart=/usr/bin/env python3 /srv/chpc-gpu-finder/sync_pages_data.py
-User=REPLACE_ME
-Group=REPLACE_ME
+WorkingDirectory=%h/chpc-gpu-finder
+ExecStart=/usr/bin/env python3 %h/chpc-gpu-finder/sync_pages_data.py

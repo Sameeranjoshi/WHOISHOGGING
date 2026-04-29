@@ -32,38 +32,49 @@ Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
 ## Lab machine deployment
 
-Copy the repo to the lab machine, for example:
+The easiest path is a user-level install on the lab machine. No root is required.
+
+After you SSH to the lab host:
 
 ```bash
-git clone https://github.com/Sameeranjoshi/WHOISHOGGING.git /srv/chpc-gpu-finder
-cd /srv/chpc-gpu-finder
+git clone https://github.com/Sameeranjoshi/WHOISHOGGING.git ~/chpc-gpu-finder
+bash ~/chpc-gpu-finder/deploy/install_on_lab.sh
 ```
 
-Run one sync manually first:
+That script will:
+
+1. Clone or update the repo in `~/chpc-gpu-finder`
+2. Run an initial sync using the exact shell scripts
+3. Install user-level `systemd` units
+4. Start the web server and 5-minute refresh timer
+
+## Manual start
+
+If you want to test before enabling services:
 
 ```bash
+cd ~/chpc-gpu-finder
 python3 sync_pages_data.py
-```
-
-Start the server manually:
-
-```bash
 CHPC_GPU_FINDER_REFRESH_INTERVAL=300 python3 server.py --host 0.0.0.0 --port 8000
 ```
 
-## systemd setup
+## User systemd
 
 Templates live in [`deploy/`](</Users/sameeranjoshi/Documents/New project/deploy>).
 
-Replace `REPLACE_ME` with the correct user and group, then copy:
+Useful commands on the lab machine:
 
 ```bash
-sudo cp deploy/chpc-gpu-finder.service /etc/systemd/system/
-sudo cp deploy/chpc-gpu-finder-sync.service /etc/systemd/system/
-sudo cp deploy/chpc-gpu-finder-sync.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now chpc-gpu-finder.service
-sudo systemctl enable --now chpc-gpu-finder-sync.timer
+systemctl --user status chpc-gpu-finder.service
+systemctl --user status chpc-gpu-finder-sync.timer
+journalctl --user -u chpc-gpu-finder.service -n 100 --no-pager
+journalctl --user -u chpc-gpu-finder-sync.service -n 100 --no-pager
+```
+
+If you want the service to stay up after logout:
+
+```bash
+loginctl enable-linger "$USER"
 ```
 
 ## Notes
@@ -73,3 +84,4 @@ sudo systemctl enable --now chpc-gpu-finder-sync.timer
 - The timer is still recommended so normal page loads do not wait on a full refresh.
 - If the lab machine lacks CHPC command access, the sync step will fail. The server will still serve the last successful snapshots if they exist.
 - The shell scripts use Bash associative arrays, so the lab machine should have Bash 4+ available.
+- The included deploy script assumes `systemd --user` is available on the lab machine.
