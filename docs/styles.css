@@ -72,9 +72,18 @@ h2 {
   gap: 10px;
 }
 
+.topbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .tabButton,
 .filterButton,
-.sortButton {
+.sortButton,
+.refreshButton {
   appearance: none;
   border: 0;
   background: transparent;
@@ -84,7 +93,8 @@ h2 {
 }
 
 .tabButton,
-.filterButton {
+.filterButton,
+.refreshButton {
   border-radius: 999px;
   padding: 12px 16px;
   font: 600 0.96rem/1 "Avenir Next", "Helvetica Neue", sans-serif;
@@ -99,6 +109,16 @@ h2 {
 .filterButton.active {
   background: var(--accent-strong);
   color: #ffffff;
+}
+
+.refreshButton {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .toolbar {

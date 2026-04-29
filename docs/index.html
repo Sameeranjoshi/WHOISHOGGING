@@ -13,10 +13,13 @@
         <p class="eyebrow">University of Utah CHPC</p>
         <h1>CHPC GPU Finder</h1>
       </div>
-      <nav class="tabs" id="tabNav" aria-label="Main views">
-        <button class="tabButton active" data-view="free">Find GPUs</button>
-        <button class="tabButton" data-view="hogging">Find Who Is Hogging GPUs</button>
-      </nav>
+      <div class="topbarActions">
+        <nav class="tabs" id="tabNav" aria-label="Main views">
+          <button class="tabButton active" data-view="free">Find GPUs</button>
+          <button class="tabButton" data-view="hogging">Find Who Is Hogging GPUs</button>
+        </nav>
+        <button class="refreshButton" id="refreshButton" type="button">Refresh</button>
+      </div>
     </header>
 
     <section class="toolbar">

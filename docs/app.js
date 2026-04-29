@@ -216,6 +216,7 @@ const summaryHead = document.getElementById("summaryHead");
 const summaryBody = document.getElementById("summaryBody");
 const sallocCommand = document.getElementById("sallocCommand");
 const dataStamp = document.getElementById("dataStamp");
+const refreshButton = document.getElementById("refreshButton");
 
 const state = {
   view: "free",
@@ -566,6 +567,8 @@ async function loadJson(path) {
 }
 
 async function loadData() {
+  refreshButton.disabled = true;
+  refreshButton.textContent = "Refreshing...";
   try {
     const [freeData, hoggingData] = await Promise.all([
       loadJson("./data/free_gpus.json"),
@@ -582,6 +585,8 @@ async function loadData() {
     state.freeGeneratedAt = null;
     state.hoggingGeneratedAt = null;
   }
+  refreshButton.disabled = false;
+  refreshButton.textContent = "Refresh";
   render();
 }
 
@@ -634,6 +639,10 @@ primaryBody.addEventListener("click", (event) => {
   if (!row || !row.dataset.key) return;
   state.selectedFreeKey = row.dataset.key;
   render();
+});
+
+refreshButton.addEventListener("click", () => {
+  loadData();
 });
 
 loadData();
