@@ -31,6 +31,7 @@ Useful commands on `notchpeak`:
 ```bash
 tmux attach -t chpc-gpu-finder
 tmux ls
+tail -n 80 ~/chpc-gpu-finder/.runtime/server.log
 curl http://127.0.0.1:8000/api/status
 curl -X POST http://127.0.0.1:8000/api/refresh
 ```
