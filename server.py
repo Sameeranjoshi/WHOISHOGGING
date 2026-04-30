@@ -6,7 +6,15 @@ import ssl
 import threading
 import time
 import urllib.parse
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import posixpath
+import socketserver
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+
+try:
+    from http.server import ThreadingHTTPServer
+except ImportError:
+    class ThreadingHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
+        daemon_threads = True
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -82,7 +90,30 @@ def origin_is_allowed(origin: Optional[str]) -> bool:
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(DOCS), **kwargs)
+        try:
+            super().__init__(*args, directory=str(DOCS), **kwargs)
+        except TypeError:
+            # Python <3.7: directory kwarg not supported; translate_path handles it
+            super().__init__(*args, **kwargs)
+
+    def translate_path(self, path):
+        # Serve static files from DOCS (Python 3.6 SimpleHTTPRequestHandler uses
+        # os.getcwd() rather than self.directory, so we reimplement here).
+        path = path.split('?', 1)[0].split('#', 1)[0]
+        trailing_slash = path.rstrip().endswith('/')
+        try:
+            path = urllib.parse.unquote(path, errors='surrogatepass')
+        except UnicodeDecodeError:
+            path = urllib.parse.unquote(path)
+        path = posixpath.normpath(path)
+        result = str(DOCS)
+        for word in path.split('/'):
+            if not word or os.path.dirname(word) or word in (os.curdir, os.pardir):
+                continue
+            result = os.path.join(result, word)
+        if trailing_slash:
+            result += '/'
+        return result
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")

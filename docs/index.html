@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CHPC GPU Finder</title>
-  <link rel="stylesheet" href="./styles.css?v=4" />
+  <link rel="stylesheet" href="./styles.css?v=5" />
 </head>
 <body>
   <main class="shell">
@@ -19,7 +19,10 @@
           <button class="tabButton active" data-view="free">Find GPUs</button>
           <button class="tabButton" data-view="hogging">Who Is Hogging</button>
         </nav>
-        <button class="refreshButton" id="refreshButton" type="button">Refresh</button>
+        <div class="refreshGroup">
+          <button class="refreshButton" id="refreshButton" type="button">Refresh</button>
+          <div class="nextRefresh" id="nextRefresh"></div>
+        </div>
       </div>
     </header>
 
@@ -78,7 +81,7 @@
       <code id="sallocCommand"></code>
     </section>
   </main>
-  <script src="./config.js?v=4"></script>
-  <script src="./app.js?v=4"></script>
+  <script src="./config.js?v=5"></script>
+  <script src="./app.js?v=5"></script>
 </body>
 </html>

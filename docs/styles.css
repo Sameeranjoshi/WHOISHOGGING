@@ -166,6 +166,43 @@ h2 {
   opacity: 0.7;
 }
 
+.refreshGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.nextRefresh {
+  color: var(--muted);
+  font: 600 0.78rem/1 "Avenir Next", "Helvetica Neue", sans-serif;
+  letter-spacing: 0.02em;
+  min-height: 1em;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.refreshButton.loading::after {
+  content: "";
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-left: 7px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  vertical-align: middle;
+}
+
+.tableWrap.loading {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
 .toolbar {
   margin-top: 16px;
   padding: 18px 22px;

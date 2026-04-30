@@ -79,6 +79,9 @@ EOF
 chmod +x "$RUNNER"
 : > "$LOG_FILE"
 
+NGROK_BIN="${NGROK_BIN:-$HOME/bin/ngrok}"
+NGROK_DOMAIN="${NGROK_DOMAIN:-pretended-remold-rented.ngrok-free.dev}"
+
 tmux new-session -d -s "$SESSION" "bash $quoted_runner"
 sleep 1
 
@@ -88,7 +91,14 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
   exit 1
 fi
 
+if [[ -x "$NGROK_BIN" ]]; then
+  tmux new-window -t "$SESSION" "$NGROK_BIN http --domain=$NGROK_DOMAIN $CHPC_GPU_FINDER_PORT"
+  echo "ngrok tunnel: https://$NGROK_DOMAIN"
+else
+  echo "ngrok not found at $NGROK_BIN — skipping tunnel."
+fi
+
 echo "Started tmux session: $SESSION"
 echo "Backend: http://${CHPC_GPU_FINDER_HOST}:${CHPC_GPU_FINDER_PORT}"
-echo "Attach logs: tmux attach -t $SESSION"
+echo "Attach: tmux -L default attach -t $SESSION"
 echo "Server log: $LOG_FILE"

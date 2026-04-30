@@ -1,3 +1,3 @@
 window.CHPC_GPU_FINDER_CONFIG = {
-  apiBaseUrl: "",
+  apiBaseUrl: "https://pretended-remold-rented.ngrok-free.dev",
 };

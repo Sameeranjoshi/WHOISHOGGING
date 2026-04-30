@@ -1,3 +1,8 @@
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
+let autoRefreshTimer = null;
+let nextRefreshAt = null;
+let countdownInterval = null;
+
 const gpuOptions = ["all", "h100", "a100", "h200", "a6000", "3090", "l40s"];
 const apiStorageKey = "chpcGpuFinderApiBaseUrl";
 
@@ -413,17 +418,47 @@ function renderHead(target, columns, tableName) {
   });
 }
 
-function formatGeneratedAt(value) {
-  if (!value) return "Using bundled sample data.";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return `Updated: ${value}`;
-  return `Updated: ${date.toLocaleString()}`;
+function relativeTime(isoString) {
+  if (!isoString) return null;
+  const diff = (Date.now() - new Date(isoString)) / 1000;
+  if (diff < 90) return "just now";
+  if (diff < 3600) return `${Math.round(diff / 60)} min ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
 }
 
 function buildStamp(value, warning) {
-  const base = formatGeneratedAt(value);
-  return warning ? `${base} • refresh warning` : base;
+  const rel = relativeTime(value);
+  const base = rel ? `Updated ${rel}` : "Using bundled sample data.";
+  return warning ? `${base} · refresh warning` : base;
 }
+
+function updateNextRefreshEl(text) {
+  const el = document.getElementById("nextRefresh");
+  if (el) el.textContent = text;
+}
+
+function scheduleAutoRefresh() {
+  clearTimeout(autoRefreshTimer);
+  clearInterval(countdownInterval);
+  nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+
+  function tick() {
+    const secs = Math.max(0, Math.round((nextRefreshAt - Date.now()) / 1000));
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    updateNextRefreshEl(`Auto-refresh in ${m}:${String(s).padStart(2, "0")}`);
+  }
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+  autoRefreshTimer = setTimeout(() => doRefresh(false), AUTO_REFRESH_MS);
+}
+
+// Keep relative timestamps fresh while the page sits idle.
+setInterval(() => {
+  const ts = state.view === "free" ? state.freeGeneratedAt : state.hoggingGeneratedAt;
+  const warn = state.view === "free" ? state.freeWarning : state.hoggingWarning;
+  dataStamp.textContent = buildStamp(ts, warn);
+}, 30_000);
 
 function renderStats(cards) {
   statsGrid.innerHTML = "";
@@ -643,7 +678,10 @@ async function loadJsonWithFallback(primaryPath, fallbackPath) {
 
 async function loadData() {
   refreshButton.disabled = true;
+  refreshButton.classList.add("loading");
   refreshButton.textContent = "Refreshing...";
+  document.querySelectorAll(".tableWrap").forEach((el) => el.classList.add("loading"));
+
   try {
     const [freeData, hoggingData] = await Promise.all([
       loadJsonWithFallback("/api/free-gpus", "./data/free_gpus.json"),
@@ -664,9 +702,28 @@ async function loadData() {
     state.freeWarning = null;
     state.hoggingWarning = null;
   }
+
+  document.querySelectorAll(".tableWrap").forEach((el) => el.classList.remove("loading"));
   refreshButton.disabled = false;
+  refreshButton.classList.remove("loading");
   refreshButton.textContent = "Refresh";
   render();
+  scheduleAutoRefresh();
+}
+
+async function doRefresh(userTriggered = true) {
+  clearTimeout(autoRefreshTimer);
+  clearInterval(countdownInterval);
+  updateNextRefreshEl(userTriggered ? "Fetching fresh data…" : "Auto-refreshing…");
+
+  try {
+    const res = await fetch(apiPath("/api/refresh"), { method: "POST", cache: "no-store" });
+    if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
+  } catch (err) {
+    console.error("Server refresh failed; reloading current data instead.", err);
+  }
+
+  await loadData();
 }
 
 function render() {
@@ -763,24 +820,6 @@ primaryBody.addEventListener("click", (event) => {
   render();
 });
 
-refreshButton.addEventListener("click", () => {
-  refreshButton.disabled = true;
-  refreshButton.textContent = "Refreshing...";
-  fetch(apiPath("/api/refresh"), {
-    method: "POST",
-    cache: "no-store",
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Refresh failed: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(() => loadData())
-    .catch((error) => {
-      console.error("Server refresh failed; reloading current data instead.", error);
-      loadData();
-    });
-});
+refreshButton.addEventListener("click", () => doRefresh(true));
 
 loadData();
