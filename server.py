@@ -43,6 +43,7 @@ class AppState:
         self.lock = threading.Lock()
         self.last_error = None
         self.last_sync = None
+        self.refresh_thread = None
 
 
 STATE = AppState()
@@ -54,8 +55,33 @@ def file_age_seconds(path: Path) -> Optional[float]:
     return time.time() - path.stat().st_mtime
 
 
-def refresh_data(force: bool = False) -> Dict[str, Any]:
+def is_refreshing() -> bool:
     with STATE.lock:
+        return STATE.refresh_thread is not None and STATE.refresh_thread.is_alive()
+
+
+def _bg_refresh_worker():
+    try:
+        result = sync_data()
+        with STATE.lock:
+            STATE.last_sync = result["generated_at"]
+            STATE.last_error = None
+    except Exception as exc:
+        with STATE.lock:
+            STATE.last_error = str(exc)
+
+
+def _start_refresh_thread():
+    t = threading.Thread(target=_bg_refresh_worker, daemon=True)
+    STATE.refresh_thread = t
+    t.start()
+
+
+def maybe_start_bg_refresh():
+    """Start a background refresh if data is stale and none is running."""
+    with STATE.lock:
+        if STATE.refresh_thread and STATE.refresh_thread.is_alive():
+            return
         free_age = file_age_seconds(FREE_JSON)
         hogging_age = file_age_seconds(HOGGING_JSON)
         is_fresh = (
@@ -64,15 +90,17 @@ def refresh_data(force: bool = False) -> Dict[str, Any]:
             and free_age <= REFRESH_INTERVAL
             and hogging_age <= REFRESH_INTERVAL
         )
-        if not force and is_fresh:
-            free_payload = load_json(FREE_JSON) or {}
-            generated_at = free_payload.get("generated_at")
-            return {"refreshed": False, "generated_at": generated_at}
+        if not is_fresh:
+            _start_refresh_thread()
 
-        result = sync_data()
-        STATE.last_sync = result["generated_at"]
-        STATE.last_error = None
-        return {"refreshed": True, **result}
+
+def force_bg_refresh() -> bool:
+    """Force a refresh regardless of data age. Returns False if one is already running."""
+    with STATE.lock:
+        if STATE.refresh_thread and STATE.refresh_thread.is_alive():
+            return False
+        _start_refresh_thread()
+        return True
 
 
 def read_payload(path: Path) -> Dict[str, Any]:
@@ -145,29 +173,25 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(encoded)
 
     def serve_api_data(self, path: Path):
-        try:
-            refresh_data(force=False)
-        except Exception as exc:
-            STATE.last_error = str(exc)
+        maybe_start_bg_refresh()
         try:
             payload = read_payload(path)
-            if STATE.last_error:
+            with STATE.lock:
+                err = STATE.last_error
+            if err:
                 payload = dict(payload)
-                payload["warning"] = STATE.last_error
+                payload["warning"] = err
             self.send_json(payload)
         except Exception as exc:
-            STATE.last_error = str(exc)
+            with STATE.lock:
+                STATE.last_error = str(exc)
             self.send_json({"ok": False, "error": str(exc)}, status=500)
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/refresh":
-            try:
-                result = refresh_data(force=True)
-                self.send_json({"ok": True, **result})
-            except Exception as exc:
-                STATE.last_error = str(exc)
-                self.send_json({"ok": False, "error": str(exc)}, status=500)
+            started = force_bg_refresh()
+            self.send_json({"ok": True, "refreshing": True, "started": started})
             return
         self.send_error(404)
 
@@ -212,14 +236,17 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/status":
             free_payload = load_json(FREE_JSON) or {}
             hogging_payload = load_json(HOGGING_JSON) or {}
+            with STATE.lock:
+                last_error = STATE.last_error
             self.send_json(
                 {
                     "ok": True,
                     "refresh_interval_seconds": REFRESH_INTERVAL,
                     "free_generated_at": free_payload.get("generated_at"),
                     "hogging_generated_at": hogging_payload.get("generated_at"),
-                    "last_error": STATE.last_error,
+                    "last_error": last_error,
                     "collector_mode": os.getenv("CHPC_COLLECTOR_MODE", "local"),
+                    "refreshing": is_refreshing(),
                 }
             )
             return

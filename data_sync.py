@@ -4,6 +4,7 @@ import os
 import re
 import shlex
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -182,8 +183,11 @@ def sync_data() -> Dict[str, Any]:
     DATA.mkdir(parents=True, exist_ok=True)
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
 
-    free_output = run_script(FREE_SCRIPT)
-    hogging_output = run_script(HOGGING_SCRIPT)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        free_fut = pool.submit(run_script, FREE_SCRIPT)
+        hogging_fut = pool.submit(run_script, HOGGING_SCRIPT)
+        free_output = free_fut.result()
+        hogging_output = hogging_fut.result()
 
     free_rows = parse_free(free_output)
     hogging_rows = parse_hogging(hogging_output)

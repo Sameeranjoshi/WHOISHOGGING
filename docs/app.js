@@ -711,16 +711,36 @@ async function loadData() {
   scheduleAutoRefresh();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pollUntilDone() {
+  const start = Date.now();
+  const limit = 3 * 60 * 1000;
+  while (Date.now() - start < limit) {
+    await sleep(2000);
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    updateNextRefreshEl(`Running CHPC scripts… ${elapsed}s`);
+    try {
+      const status = await fetch(apiPath("/api/status"), { cache: "no-store" }).then((r) => r.json());
+      if (!status.refreshing) return;
+    } catch (_) {
+      // network blip, keep polling
+    }
+  }
+}
+
 async function doRefresh(userTriggered = true) {
   clearTimeout(autoRefreshTimer);
   clearInterval(countdownInterval);
-  updateNextRefreshEl(userTriggered ? "Fetching fresh data…" : "Auto-refreshing…");
+  updateNextRefreshEl(userTriggered ? "Starting refresh…" : "Auto-refreshing…");
 
   try {
-    const res = await fetch(apiPath("/api/refresh"), { method: "POST", cache: "no-store" });
-    if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
+    await fetch(apiPath("/api/refresh"), { method: "POST", cache: "no-store" });
+    await pollUntilDone();
   } catch (err) {
-    console.error("Server refresh failed; reloading current data instead.", err);
+    console.error("Refresh error:", err);
   }
 
   await loadData();
