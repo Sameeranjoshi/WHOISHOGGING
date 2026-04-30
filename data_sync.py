@@ -17,6 +17,11 @@ COLLECTOR_MODE = os.getenv("CHPC_COLLECTOR_MODE", "local")
 SSH_TARGET = os.getenv("CHPC_COLLECTOR_SSH_TARGET", "")
 SSH_IDENTITY_FILE = os.getenv("CHPC_COLLECTOR_SSH_IDENTITY_FILE", "")
 REMOTE_REPO_DIR = os.getenv("CHPC_REMOTE_REPO_DIR", "$HOME/chpc-gpu-finder")
+SCRIPT_TIMEOUT_SECONDS = int(os.getenv("CHPC_SCRIPT_TIMEOUT_SECONDS", "180"))
+
+
+def expand_local_path(path: str) -> str:
+    return os.path.expandvars(os.path.expanduser(path.replace("%h", str(Path.home()))))
 
 
 def run_local_script(script: Path) -> str:
@@ -28,7 +33,12 @@ def run_local_script(script: Path) -> str:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
+            timeout=SCRIPT_TIMEOUT_SECONDS,
         )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Timed out after {SCRIPT_TIMEOUT_SECONDS}s while running {script.name}."
+        ) from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
             f"Failed while running {script.name}.\n"
@@ -44,7 +54,8 @@ def run_remote_script(script: Path) -> str:
 
     ssh_command = ["ssh"]
     if SSH_IDENTITY_FILE:
-        ssh_command.extend(["-i", SSH_IDENTITY_FILE])
+        ssh_command.extend(["-i", expand_local_path(SSH_IDENTITY_FILE)])
+    ssh_command.extend(["-o", "BatchMode=yes"])
 
     remote_script = script.relative_to(ROOT).as_posix()
     remote_command = f"cd {REMOTE_REPO_DIR} && bash {shlex.quote(remote_script)}"
@@ -57,7 +68,13 @@ def run_remote_script(script: Path) -> str:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
+            timeout=SCRIPT_TIMEOUT_SECONDS,
         )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Timed out after {SCRIPT_TIMEOUT_SECONDS}s while running remote script "
+            f"{script.name} via {SSH_TARGET}."
+        ) from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
             f"Failed while running remote script {script.name} via {SSH_TARGET}.\n"

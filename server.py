@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import ssl
 import threading
 import time
 import urllib.parse
@@ -15,6 +16,13 @@ ROOT = Path(__file__).resolve().parent
 HOST = os.getenv("CHPC_GPU_FINDER_HOST", "0.0.0.0")
 PORT = int(os.getenv("CHPC_GPU_FINDER_PORT", "8000"))
 REFRESH_INTERVAL = int(os.getenv("CHPC_GPU_FINDER_REFRESH_INTERVAL", "300"))
+TLS_CERT = os.getenv("CHPC_GPU_FINDER_TLS_CERT", "")
+TLS_KEY = os.getenv("CHPC_GPU_FINDER_TLS_KEY", "")
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CHPC_GPU_FINDER_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 FREE_JSON = DATA / "free_gpus.json"
 HOGGING_JSON = DATA / "whoishogging.json"
@@ -66,12 +74,27 @@ def read_payload(path: Path) -> Dict[str, Any]:
     return payload
 
 
+def origin_is_allowed(origin: Optional[str]) -> bool:
+    if not origin or not ALLOWED_ORIGINS:
+        return False
+    return "*" in ALLOWED_ORIGINS or origin in ALLOWED_ORIGINS
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(DOCS), **kwargs)
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
+        origin = self.headers.get("Origin")
+        if origin_is_allowed(origin):
+            self.send_header(
+                "Access-Control-Allow-Origin",
+                "*" if "*" in ALLOWED_ORIGINS else origin,
+            )
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
         super().end_headers()
 
     def send_json(self, payload: Dict[str, Any], status: int = 200):
@@ -117,6 +140,14 @@ class Handler(SimpleHTTPRequestHandler):
             return
         self.send_error(404)
 
+    def do_OPTIONS(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/"):
+            self.send_response(204)
+            self.end_headers()
+            return
+        self.send_error(404)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/free-gpus":
@@ -157,6 +188,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "free_generated_at": free_payload.get("generated_at"),
                     "hogging_generated_at": hogging_payload.get("generated_at"),
                     "last_error": STATE.last_error,
+                    "collector_mode": os.getenv("CHPC_COLLECTOR_MODE", "local"),
                 }
             )
             return
@@ -169,10 +201,19 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=HOST)
     parser.add_argument("--port", type=int, default=PORT)
+    parser.add_argument("--tls-cert", default=TLS_CERT)
+    parser.add_argument("--tls-key", default=TLS_KEY)
     args = parser.parse_args()
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"Serving CHPC GPU Finder at http://{args.host}:{args.port}")
+    scheme = "http"
+    if args.tls_cert:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=args.tls_cert, keyfile=args.tls_key or None)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        scheme = "https"
+
+    print(f"Serving CHPC GPU Finder at {scheme}://{args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

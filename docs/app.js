@@ -1,4 +1,56 @@
 const gpuOptions = ["all", "h100", "a100", "h200", "a6000", "3090", "l40s"];
+const apiStorageKey = "chpcGpuFinderApiBaseUrl";
+
+function safeStorageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures; same-origin config still works.
+  }
+}
+
+function safeStorageRemove(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures; same-origin config still works.
+  }
+}
+
+function normalizeApiBaseUrl(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+}
+
+const runtimeConfig = window.CHPC_GPU_FINDER_CONFIG || {};
+const pageParams = new URLSearchParams(window.location.search);
+const hasQueryApiBaseUrl = pageParams.has("apiBaseUrl") || pageParams.has("api");
+const queryApiBaseUrl = pageParams.has("apiBaseUrl")
+  ? pageParams.get("apiBaseUrl")
+  : pageParams.get("api");
+const storedApiBaseUrl = safeStorageGet(apiStorageKey);
+
+if (hasQueryApiBaseUrl) {
+  const normalized = normalizeApiBaseUrl(queryApiBaseUrl);
+  if (normalized) {
+    safeStorageSet(apiStorageKey, normalized);
+  } else {
+    safeStorageRemove(apiStorageKey);
+  }
+}
+
+const apiBaseUrl = normalizeApiBaseUrl(
+  hasQueryApiBaseUrl ? queryApiBaseUrl : runtimeConfig.apiBaseUrl || storedApiBaseUrl || "",
+);
 
 const fallbackFreeRows = [
   {
@@ -569,12 +621,23 @@ async function loadJson(path) {
   return response.json();
 }
 
+function apiPath(path) {
+  if (!apiBaseUrl) return path;
+  return new URL(path, apiBaseUrl).toString();
+}
+
+function cacheBust(path) {
+  const url = new URL(path, window.location.href);
+  url.searchParams.set("t", Date.now());
+  return url.toString();
+}
+
 async function loadJsonWithFallback(primaryPath, fallbackPath) {
   try {
-    return await loadJson(`${primaryPath}?t=${Date.now()}`);
+    return await loadJson(cacheBust(apiPath(primaryPath)));
   } catch (error) {
     console.warn(`Primary fetch failed for ${primaryPath}, falling back to ${fallbackPath}`, error);
-    return loadJson(`${fallbackPath}?t=${Date.now()}`);
+    return loadJson(cacheBust(fallbackPath));
   }
 }
 
@@ -703,9 +766,9 @@ primaryBody.addEventListener("click", (event) => {
 refreshButton.addEventListener("click", () => {
   refreshButton.disabled = true;
   refreshButton.textContent = "Refreshing...";
-  fetch("/api/refresh", {
+  fetch(apiPath("/api/refresh"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
   })
     .then((response) => {
       if (!response.ok) {
